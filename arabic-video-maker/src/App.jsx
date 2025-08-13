@@ -37,7 +37,7 @@ function App() {
 
     try {
       // Step 1: Create a project (to get a project ID)
-      const createProjectResponse = await fetch('https://5000-iwzc18wdeyzj7uc6jopt8-0440bc70.manus.computer/api/projects', {
+      const createProjectResponse = await fetch('/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -55,7 +55,7 @@ function App() {
       setProjectId(projectData.project.id)
 
       // Step 2: Generate TTS audio
-      const ttsResponse = await fetch('https://5000-iwzc18wdeyzj7uc6jopt8-0440bc70.manus.computer/api/tts/preview', {
+      const ttsResponse = await fetch('/api/tts/preview', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,7 +66,7 @@ function App() {
       const ttsData = await ttsResponse.json()
 
       if (ttsData.success) {
-        setAudioUrl(`https://5000-iwzc18wdeyzj7uc6jopt8-0440bc70.manus.computer${ttsData.audio_url}`)
+        setAudioUrl(ttsData.audio_url)
       } else {
         console.error('Error generating audio:', ttsData.error)
         alert(`خطأ في توليد الصوت: ${ttsData.error}`)
@@ -75,7 +75,7 @@ function App() {
       }
 
       // Step 3: Generate video using the project ID
-      const videoResponse = await fetch('https://5000-iwzc18wdeyzj7uc6jopt8-0440bc70.manus.computer/api/video/generate', {
+      const videoResponse = await fetch('/api/video/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -263,7 +263,7 @@ function App() {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1">
                     <Play className="h-4 w-4 mr-2" />
@@ -315,6 +315,3 @@ function App() {
 }
 
 export default App
-
-
-
