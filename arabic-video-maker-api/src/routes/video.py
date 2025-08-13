@@ -92,7 +92,7 @@ def generate_video():
     """بدء عملية إنتاج الفيديو باستخدام Stable Diffusion API"""
     data = request.get_json()
 
-    if not data or not data.get("project_id"):  # Changed from 'project_id' to 'project_id'
+    if not data or not data.get("project_id"):
         return jsonify({"success": False, "error": "معرف المشروع مطلوب"}), 400
 
     project_id = data.get("project_id")
@@ -105,18 +105,36 @@ def generate_video():
     if not text_prompt:
         return jsonify({"success": False, "error": "النص غير متوفر لإنشاء الفيديو"}), 400
 
+    # التحقق من وجود مفتاح API
+    if not STABLE_DIFFUSION_API_KEY:
+        return jsonify({"success": False, "error": "مفتاح Stable Diffusion API غير متوفر. يرجى إضافته في الإعدادات"}), 500
+
     headers = {"Content-Type": "application/json"}
     payload = {
         "key": STABLE_DIFFUSION_API_KEY,
-        "prompt": text_prompt,
-        "negative_prompt": "low quality, bad anatomy, blurry, deformed, disfigured",
+        "prompt": f"high quality video of {text_prompt}, cinematic, professional",
+        "negative_prompt": "low quality, bad anatomy, blurry, deformed, disfigured, watermark, text",
         "scheduler": "UniPCMultistepScheduler",
-        "seconds": 5  # يمكنك تعديل مدة الفيديو هنا
+        "seconds": 3,  # تقليل المدة لتوفير الوقت والتكلفة
+        "guidance_scale": 7.5,
+        "num_inference_steps": 20
     }
 
     try:
-        response = requests.post(STABLE_DIFFUSION_API_URL, headers=headers, json=payload)
-        response.raise_for_status()  # Raise an exception for HTTP errors
+        print(f"Sending request to Stable Diffusion API with prompt: {text_prompt}")
+        response = requests.post(STABLE_DIFFUSION_API_URL, headers=headers, json=payload, timeout=60)
+        
+        print(f"Response status: {response.status_code}")
+        print(f"Response content: {response.text[:500]}...")  # أول 500 حرف للتشخيص
+        
+        if response.status_code == 401:
+            return jsonify({"success": False, "error": "مفتاح API غير صحيح أو منتهي الصلاحية"}), 500
+        elif response.status_code == 402:
+            return jsonify({"success": False, "error": "رصيد API غير كافي"}), 500
+        elif response.status_code == 429:
+            return jsonify({"success": False, "error": "تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً"}), 500
+        
+        response.raise_for_status()
         video_data = response.json()
 
         if video_data.get("status") == "success" and video_data.get("output"):
@@ -124,13 +142,20 @@ def generate_video():
             project["video_url"] = video_url
             project["status"] = "completed"
             return jsonify({"success": True, "video_url": video_url, "status": "completed"})
+        elif video_data.get("status") == "processing":
+            # في حالة المعالجة، يمكن إرجاع معرف المهمة للمتابعة لاحقاً
+            return jsonify({"success": True, "status": "processing", "message": "الفيديو قيد المعالجة..."})
         else:
-            return jsonify({"success": False, "error": video_data.get("messege", "فشل في إنشاء الفيديو")}), 500
+            error_msg = video_data.get("message", video_data.get("messege", "فشل في إنشاء الفيديو"))
+            return jsonify({"success": False, "error": f"خطأ من API: {error_msg}"}), 500
 
+    except requests.exceptions.Timeout:
+        return jsonify({"success": False, "error": "انتهت مهلة الاتصال مع خدمة إنشاء الفيديو"}), 500
     except requests.exceptions.RequestException as e:
-        return jsonify({"success": False, "error": f"خطأ في الاتصال بـ Stable Diffusion API: {str(e)}"}), 500
+        return jsonify({"success": False, "error": f"خطأ في الاتصال: {str(e)}"}), 500
     except Exception as e:
-        return jsonify({"success": False, "error": f"حدث خطأ: {str(e)}"}), 500
+        print(f"Unexpected error: {str(e)}")
+        return jsonify({"success": False, "error": f"حدث خطأ غير متوقع: {str(e)}"}), 500
 
 @video_bp.route("/video/status/<job_id>", methods=["GET"])
 def get_video_status(job_id):
