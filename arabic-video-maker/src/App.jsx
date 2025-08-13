@@ -11,6 +11,9 @@ function App() {
   const [selectedDialect, setSelectedDialect] = useState('')
   const [selectedVoice, setSelectedVoice] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [audioUrl, setAudioUrl] = useState(null)
+  const [videoUrl, setVideoUrl] = useState(null)
+  const [projectId, setProjectId] = useState(null)
 
   const dialects = [
     { value: 'msa', label: 'العربية الفصحى' },
@@ -27,12 +30,74 @@ function App() {
     { value: 'female2', label: 'عائشة - صوت أنثوي دافئ' }
   ]
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     setIsGenerating(true)
-    // محاكاة عملية الإنتاج
-    setTimeout(() => {
+    setAudioUrl(null)
+    setVideoUrl(null)
+
+    try {
+      // Step 1: Create a project (to get a project ID)
+      const createProjectResponse = await fetch('https://5000-iwzc18wdeyzj7uc6jopt8-0440bc70.manus.computer/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text, dialect: selectedDialect, voice: selectedVoice }),
+      })
+      const projectData = await createProjectResponse.json()
+
+      if (!projectData.success) {
+        console.error('Error creating project:', projectData.error)
+        alert(`خطأ في إنشاء المشروع: ${projectData.error}`)
+        setIsGenerating(false)
+        return
+      }
+      setProjectId(projectData.project.id)
+
+      // Step 2: Generate TTS audio
+      const ttsResponse = await fetch('https://5000-iwzc18wdeyzj7uc6jopt8-0440bc70.manus.computer/api/tts/preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text, voice: selectedVoice }),
+      })
+
+      const ttsData = await ttsResponse.json()
+
+      if (ttsData.success) {
+        setAudioUrl(`https://5000-iwzc18wdeyzj7uc6jopt8-0440bc70.manus.computer${ttsData.audio_url}`)
+      } else {
+        console.error('Error generating audio:', ttsData.error)
+        alert(`خطأ في توليد الصوت: ${ttsData.error}`)
+        setIsGenerating(false)
+        return
+      }
+
+      // Step 3: Generate video using the project ID
+      const videoResponse = await fetch('https://5000-iwzc18wdeyzj7uc6jopt8-0440bc70.manus.computer/api/video/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ project_id: projectData.project.id }),
+      })
+
+      const videoData = await videoResponse.json()
+
+      if (videoData.success) {
+        setVideoUrl(videoData.video_url)
+      } else {
+        console.error('Error generating video:', videoData.error)
+        alert(`خطأ في توليد الفيديو: ${videoData.error}`)
+      }
+
+    } catch (error) {
+      console.error('Network error:', error)
+      alert('حدث خطأ في الاتصال بالخادم.')
+    } finally {
       setIsGenerating(false)
-    }, 3000)
+    }
   }
 
   return (
@@ -187,6 +252,10 @@ function App() {
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                       <p>جاري إنتاج الفيديو...</p>
                     </div>
+                  ) : videoUrl ? (
+                    <video controls src={videoUrl} className="w-full" />
+                  ) : audioUrl ? (
+                    <audio controls src={audioUrl} className="w-full" />
                   ) : (
                     <div className="text-center text-gray-400">
                       <Play className="h-16 w-16 mx-auto mb-4" />
@@ -246,3 +315,6 @@ function App() {
 }
 
 export default App
+
+
+
