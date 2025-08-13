@@ -1,0 +1,20 @@
+modules = ["python-3.12", "cpp-clang14", "nodejs-20", "c-clang14"]
+
+[nix]
+channel = "stable-25_05"
+
+[deployment]
+run = ["sh", "-c", "cd arabic-video-maker-api && python src/main.py"]
+build = ["sh", "-c", "cd arabic-video-maker && npm run build"]
+
+[workflows]
+runButton = "Run"
+
+[[workflows.workflow]]
+name = "Run"
+author = 46392208
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd arabic-video-maker-api && python src/main.py"
