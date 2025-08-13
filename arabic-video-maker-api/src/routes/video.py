@@ -70,7 +70,13 @@ def preview_tts():
         response.raise_for_status()  # Raise an exception for HTTP errors
 
         audio_filename = f"audio_preview_{uuid.uuid4()}.mp3"
-        audio_path = os.path.join(os.path.dirname(__file__), "static", audio_filename)
+        static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+        
+        # إنشاء مجلد static إذا لم يكن موجوداً
+        if not os.path.exists(static_dir):
+            os.makedirs(static_dir)
+            
+        audio_path = os.path.join(static_dir, audio_filename)
         with open(audio_path, "wb") as f:
             f.write(response.content)
 
