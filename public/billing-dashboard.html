@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice AI Billing Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; }
+    th { background: #f4f4f4; }
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Billing Dashboard</h1>
+  <div class="cards">
+    <div class="card"><strong>Total Users</strong><div id="usersCount">-</div></div>
+    <div class="card"><strong>Total Payments</strong><div id="paymentsCount">-</div></div>
+    <div class="card"><strong>Failed Payments</strong><div id="failedCount">-</div></div>
+  </div>
+
+  <h2>Users</h2>
+  <table id="usersTable"><thead><tr><th>User</th><th>Tenant</th><th>Status</th><th>Plan</th><th>Credits</th></tr></thead><tbody></tbody></table>
+
+  <h2>Failed Payments</h2>
+  <table id="failedTable"><thead><tr><th>At</th><th>User</th><th>Tenant</th><th>Amount</th><th>Reason</th></tr></thead><tbody></tbody></table>
+
+  <script>
+    async function load() {
+      const res = await fetch('/billing/admin');
+      const data = await res.json();
+
+      document.getElementById('usersCount').textContent = data.users.length;
+      document.getElementById('paymentsCount').textContent = data.payments.length;
+      document.getElementById('failedCount').textContent = data.failedPayments.length;
+
+      const usersBody = document.querySelector('#usersTable tbody');
+      usersBody.innerHTML = data.users.map(u => `<tr><td>${u.userId}</td><td>${u.tenantId}</td><td>${u.status}</td><td>${u.planCode || '-'}</td><td>${u.creditsBalance}</td></tr>`).join('');
+
+      const failedBody = document.querySelector('#failedTable tbody');
+      failedBody.innerHTML = data.failedPayments.map(p => `<tr><td>${p.at}</td><td>${p.userId}</td><td>${p.tenantId}</td><td>${p.amountUsd}</td><td>${p.reason}</td></tr>`).join('');
+    }
+    load();
+  </script>
+</body>
+</html>
